@@ -1,0 +1,126 @@
+#!/usr/bin/env python3
+"""Build talukas.yaml: every Maharashtra taluka, its district, Marathi name and a
+point for the weather forecast. Run once, by hand; the output is reviewed and
+committed, and the pipeline only ever reads the committed file.
+
+Source: OpenStreetMap (© OpenStreetMap contributors, ODbL 1.0). Download the
+three files below from an Overpass API server, then run:
+
+    python scripts/build_talukas.py DIR > talukas.yaml
+
+DIR/admin.json     districts (admin_level 5) and talukas (6) in Maharashtra,
+                   `out body center;`
+DIR/centres.json   per taluka: its admin_centre node and the district area that
+                   contains it (foreach taluka: out ids; admin_centre node; is_in)
+DIR/missing.json   the same district lookup by area centre, for talukas that
+                   have no admin_centre in OpenStreetMap
+
+The forecast point is the taluka headquarters town where OpenStreetMap links
+one, otherwise the centre of the taluka's area.
+"""
+from __future__ import annotations
+
+import json
+import re
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from havaman.config import load_config  # noqa: E402
+
+SUFFIXES = re.compile(r"\s+(taluka|tahsil|tehsil|subdistrict|sub-district)$", re.I)
+SUFFIXES_MR = re.compile(r"\s+(तालुका|तहसील)$")
+
+
+# OpenStreetMap has no taluka boundaries in Mumbai. Mumbai Suburban's three
+# talukas (which make the official 358 with the 355 above) and one point for
+# Mumbai City (a district without talukas), placed by Nominatim lookups.
+MANUAL = [
+    {"district": "mumbai", "slug": "mumbai-city", "name": "Mumbai City", "mr": "मुंबई शहर",
+     "lgd": "", "lat": 18.9414, "lon": 72.8354, "point": "manual"},
+    {"district": "mumbai", "slug": "andheri", "name": "Andheri", "mr": "अंधेरी",
+     "lgd": "", "lat": 19.1197, "lon": 72.8464, "point": "manual"},
+    {"district": "mumbai", "slug": "borivali", "name": "Borivali", "mr": "बोरिवली",
+     "lgd": "", "lat": 19.2314, "lon": 72.8409, "point": "manual"},
+    {"district": "mumbai", "slug": "kurla", "name": "Kurla", "mr": "कुर्ला",
+     "lgd": "", "lat": 19.0653, "lon": 72.8794, "point": "manual"},
+]
+
+
+def slugify(text: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
+
+
+def clean(name: str, pattern=SUFFIXES) -> str:
+    return pattern.sub("", " ".join(name.split()))
+
+
+def district_lookup(cfg: dict) -> dict[str, str]:
+    """OpenStreetMap district name (lower case, no 'district') -> our district slug."""
+    out = {}
+    for d in cfg["districts"]:
+        for name in [d["name"], d["slug"].replace("-", " "), *(d.get("aliases") or [])]:
+            out[name.lower()] = d["slug"]
+    out.update({"mumbai city": "mumbai", "mumbai suburban": "mumbai",
+                "chhatrapati sambhajinagar": "chhatrapati-sambhajinagar"})
+    return out
+
+
+def main(src: Path) -> None:
+    cfg = load_config(Path(__file__).resolve().parents[1] / "config.yaml")
+    lookup = district_lookup(cfg)
+    admin = json.loads((src / "admin.json").read_text())["elements"]
+    districts = {3600000000 + e["id"]: e for e in admin if e["tags"]["admin_level"] == "5"}
+    talukas = {e["id"]: e for e in admin if e["tags"]["admin_level"] == "6"}
+
+    place: dict[int, dict] = {}
+    for name in ("centres.json", "missing.json"):
+        current = None
+        for e in json.loads((src / name).read_text())["elements"]:
+            if e["type"] == "relation":
+                current = e["id"]
+                place.setdefault(current, {})
+            elif e["type"] == "node":
+                place[current]["point"] = (e["lat"], e["lon"], "hq")
+            elif e["type"] == "area":
+                place[current]["district"] = e["id"]
+
+    rows, problems = [], []
+    for rid, t in talukas.items():
+        tags = t["tags"]
+        info = place.get(rid, {})
+        d = districts.get(info.get("district"))
+        if d is None:
+            problems.append(f"no district for {tags.get('name')} (relation {rid})")
+            continue
+        dname = clean(d["tags"].get("name:en") or d["tags"]["name"]).lower().removesuffix(" district")
+        slug = lookup.get(dname)
+        if slug is None:
+            problems.append(f"district {dname!r} is not in config.yaml")
+            continue
+        lat, lon, kind = info.get("point") or (t["center"]["lat"], t["center"]["lon"], "centre")
+        name = clean(tags.get("name:en") or tags["name"])
+        rows.append({"district": slug, "slug": slugify(name), "name": name,
+                     "mr": clean(tags.get("name:mr", ""), SUFFIXES_MR),
+                     "lgd": tags.get("ref:LGD:subdistrict", ""),
+                     "lat": round(lat, 4), "lon": round(lon, 4), "point": kind})
+    if problems:
+        sys.exit("\n".join(problems))
+
+    rows += MANUAL
+    rows.sort(key=lambda r: (r["district"], r["name"]))
+    print("# Every Maharashtra taluka, for the weather pages. Generated by")
+    print("# scripts/build_talukas.py from OpenStreetMap (© OpenStreetMap contributors,")
+    print("# ODbL 1.0: https://www.openstreetmap.org/copyright), then reviewed by hand.")
+    print("# point: hq = the taluka headquarters town, centre = middle of the taluka area,")
+    print("# manual = placed by hand (Mumbai, where OpenStreetMap has no taluka boundaries).")
+    print("# Marathi names are OpenStreetMap's and need the admin's review.")
+    print("talukas:")
+    for r in rows:
+        print(f"  - {{district: {r['district']}, slug: {r['slug']}, name: {json.dumps(r['name'])}, "
+              f"mr: {json.dumps(r['mr'], ensure_ascii=False)}, lgd: \"{r['lgd']}\", "
+              f"lat: {r['lat']}, lon: {r['lon']}, point: {r['point']}}}")
+
+
+if __name__ == "__main__":
+    main(Path(sys.argv[1]))

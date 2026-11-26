@@ -1,0 +1,51 @@
+# Settings for the Shetkari Shala weather pages (havaman.shetkarishala.com).
+# Everything that might change lives here; the code holds no place names.
+
+site:
+  base_url: "https://havaman.shetkarishala.com/"
+  prices_url: "https://bajarbhav.shetkarishala.com/"   # each district page links to its prices
+
+weather:
+  talukas_file: talukas.yaml   # 358 talukas + Mumbai City, from OpenStreetMap (ODbL)
+  forecast_days: 7             # hourly and daily, counting today
+  batch_size: 50               # talukas per request
+  every_hours: 3               # how often the pages refresh
+
+# The same 35 districts as the price pages (AGMARKNET reports Mumbai City and
+# Suburban as one district), with the same slugs so the two sites can link.
+districts:
+  - {slug: ahilyanagar, name: "Ahilyanagar", mr: "अहिल्यानगर", aliases: ["Ahmednagar"]}
+  - {slug: akola, name: "Akola", mr: "अकोला"}
+  - {slug: amravati, name: "Amarawati", mr: "अमरावती", aliases: ["Amravati"]}
+  - {slug: beed, name: "Beed", mr: "बीड"}
+  - {slug: bhandara, name: "Bhandara", mr: "भंडारा"}
+  - {slug: buldhana, name: "Buldhana", mr: "बुलढाणा"}
+  - {slug: chandrapur, name: "Chandrapur", mr: "चंद्रपूर"}
+  - {slug: chhatrapati-sambhajinagar, name: "Chattrapati Sambhajinagar", mr: "छत्रपती संभाजीनगर", aliases: ["Aurangabad"]}
+  - {slug: dharashiv, name: "Dharashiv", mr: "धाराशिव", aliases: ["Osmanabad", "Murum"]}
+  - {slug: dhule, name: "Dhule", mr: "धुळे"}
+  - {slug: gadchiroli, name: "Gadchiroli", mr: "गडचिरोली"}
+  - {slug: gondiya, name: "Gondiya", mr: "गोंदिया", aliases: ["Gondia"]}
+  - {slug: hingoli, name: "Hingoli", mr: "हिंगोली"}
+  - {slug: jalgaon, name: "Jalgaon", mr: "जळगाव"}
+  - {slug: jalna, name: "Jalna", mr: "जालना"}
+  - {slug: kolhapur, name: "Kolhapur", mr: "कोल्हापूर"}
+  - {slug: latur, name: "Latur", mr: "लातूर"}
+  - {slug: mumbai, name: "Mumbai", mr: "मुंबई", aliases: ["Bandra(E)"]}
+  - {slug: nagpur, name: "Nagpur", mr: "नागपूर"}
+  - {slug: nanded, name: "Nanded", mr: "नांदेड"}
+  - {slug: nandurbar, name: "Nandurbar", mr: "नंदुरबार"}
+  - {slug: nashik, name: "Nashik", mr: "नाशिक"}
+  - {slug: palghar, name: "Palghar", mr: "पालघर"}
+  - {slug: parbhani, name: "Parbhani", mr: "परभणी"}
+  - {slug: pune, name: "Pune", mr: "पुणे"}
+  - {slug: raigad, name: "Raigad", mr: "रायगड"}
+  - {slug: ratnagiri, name: "Ratnagiri", mr: "रत्नागिरी"}
+  - {slug: sangli, name: "Sangli", mr: "सांगली"}
+  - {slug: satara, name: "Satara", mr: "सातारा"}
+  - {slug: sindhudurg, name: "Sindhudurg", mr: "सिंधुदुर्ग"}
+  - {slug: solapur, name: "Solapur", mr: "सोलापूर"}
+  - {slug: thane, name: "Thane", mr: "ठाणे"}
+  - {slug: wardha, name: "Wardha", mr: "वर्धा"}
+  - {slug: washim, name: "Washim", mr: "वाशिम"}
+  - {slug: yavatmal, name: "Yavatmal", mr: "यवतमाळ"}
