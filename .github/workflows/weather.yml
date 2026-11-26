@@ -1,10 +1,12 @@
-# Fetches the forecast for every taluka from Open-Meteo and checks it, every
-# 4 hours, or by hand from the Actions tab. For now it keeps the checked file
-# as a run artifact; the Pages deploy is added with the pages.
+# Every 4 hours (or by hand from the Actions tab): fetch the forecast for every
+# taluka from Open-Meteo, check it, build the site and publish it to
+# havaman.shetkarishala.com. If fewer than 90% of talukas get a forecast, the
+# run fails before publishing, so the last good site stays up.
 #
-# Security: no secrets are used at all; no pull_request trigger; read-only
-# token; every action pinned to a full commit SHA. If a run fails, GitHub's
-# own failure email tells the admin.
+# Security: no secrets are used at all; no pull_request trigger; the build job
+# has a read-only token, only the deploy job may publish Pages; every action is
+# pinned to a full commit SHA. If a run fails, GitHub's own failure email tells
+# the admin.
 name: Weather
 
 on:
@@ -22,7 +24,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  fetch:
+  build:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -35,10 +37,23 @@ jobs:
       - run: python -m pip install --require-hashes --no-deps -r requirements.txt
       - name: Fetch and check the forecast
         run: python fetch_weather.py
-      - name: Keep the checked file for 3 days
-        if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+      - name: Build the site
+        run: python build_site.py
+      - name: Upload the pages
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9  # v5.0.0
         with:
-          name: weather
-          path: out/weather/weather.json.gz
-          retention-days: 3
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346  # v5.0.1

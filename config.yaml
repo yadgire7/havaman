@@ -13,6 +13,64 @@ weather:
   first_run_ist: "01:30"       # then every 4 h: 05:30, 09:30, 13:30, 17:30, 21:30,
                                # each 30 min before a price run (06, 12, 18, 00)
 
+# Alerts for the next hours, by fixed rules. Heavy rain follows IMD's
+# "heavy rainfall" mark (64.5 mm in a day).
+alerts:
+  window_hours: 24
+  rain_chance: 60        # % chance of rain in any hour
+  heavy_rain_mm: 64.5    # mm in a day, today or tomorrow
+  heat_c: 40             # °C
+  wind_gust_kmh: 40      # km/h gusts: not a day for spraying
+
+# How times are named, as on the price pages: 12 am to 12 pm सकाळ,
+# 12 pm to 6 pm दुपार, 6 pm to 12 am संध्याकाळ.
+day_parts_mr:
+  - {from: 0, mr: "सकाळ"}
+  - {from: 12, mr: "दुपार"}
+  - {from: 18, mr: "संध्याकाळ"}
+
+# Every Marathi word on the pages. DRAFT: the admin reviews these.
+text_mr:
+  site_title: "महाराष्ट्र हवामान"
+  site_intro: "प्रत्येक तालुक्याचा तासागणिक आणि ७ दिवसांचा हवामान अंदाज."
+  district_suffix: "जिल्हा"
+  all_districts: "सर्व जिल्हे"
+  talukas_count: "{n} तालुके"
+  now: "आता"
+  feels_like: "जाणवते {t}"
+  high_low: "कमाल {max} · किमान {min}"
+  next_hours: "पुढील २४ तास"
+  swipe_hint: "बाजूला सरकवा →"
+  week: "७ दिवसांचा अंदाज"
+  today: "आज"
+  tomorrow: "उद्या"
+  weekdays: ["सोम", "मंगळ", "बुध", "गुरु", "शुक्र", "शनि", "रवि"]
+  alerts_title: "इशारे (पुढील २४ तास)"
+  alert_storm: "⛈️ विजांसह वादळी पावसाची शक्यता, {when} पासून"
+  alert_heavy_rain: "🌧️ जोरदार पावसाचा इशारा: {when}, सुमारे {value} मिमी"
+  alert_rain: "☔ पावसाची शक्यता {value}%, {when} च्या सुमारास"
+  alert_heat: "🌡️ उष्णतेचा इशारा: तापमान {value}° पर्यंत"
+  alert_wind: "💨 जोरदार वारे ({value} किमी/तास): फवारणी टाळा"
+  no_alerts: "पुढील २४ तासांत विशेष इशारा नाही."
+  tile_rain: "पाऊस"
+  tile_rain_note: "आज एकूण"
+  tile_humidity: "आर्द्रता"
+  tile_wind: "वारा"
+  tile_wind_note: "झोत {g} किमी/तास"
+  tile_uv: "अतिनील किरण (UV)"
+  uv_levels: ["कमी", "मध्यम", "जास्त", "खूप जास्त", "अतिशय जास्त"]
+  tile_sun: "सूर्योदय · सूर्यास्त"
+  unit_mm: "मिमी"
+  unit_kmh: "किमी/तास"
+  rain_chance_short: "💧{p}%"
+  district_alerts: "इशारे असलेले तालुके: {n}"
+  prices_link: "{district} बाजारभाव →"
+  no_forecast: "या तालुक्याचा अंदाज सध्या उपलब्ध नाही. पुढच्या अद्ययावतीत पुन्हा पाहा."
+  updated: "अंदाज घेतला: {when}"
+  point_note: "अंदाज तालुक्याच्या मुख्य ठिकाणासाठी आहे; शेतावरील हवामान थोडे वेगळे असू शकते."
+  credit: "हवामान माहिती"
+  place_credit: "ठिकाणे"
+
 # The same 35 districts as the price pages (AGMARKNET reports Mumbai City and
 # Suburban as one district), with the same slugs so the two sites can link.
 districts:

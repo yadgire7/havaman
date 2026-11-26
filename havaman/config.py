@@ -8,6 +8,14 @@ from pathlib import Path
 import yaml
 
 IST = dt.timezone(dt.timedelta(hours=5, minutes=30), "IST")
+TEXT_KEYS = (
+    "site_title", "site_intro", "district_suffix", "all_districts", "talukas_count", "now",
+    "feels_like", "high_low", "next_hours", "swipe_hint", "week", "today", "tomorrow", "weekdays",
+    "alerts_title", "alert_storm", "alert_heavy_rain", "alert_rain", "alert_heat", "alert_wind",
+    "no_alerts", "tile_rain", "tile_rain_note", "tile_humidity", "tile_wind", "tile_wind_note",
+    "tile_uv", "uv_levels", "tile_sun", "unit_mm", "unit_kmh", "rain_chance_short",
+    "district_alerts", "prices_link", "no_forecast", "updated", "point_note", "credit",
+    "place_credit")
 SLUG = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 
 
@@ -65,6 +73,24 @@ def validate_config(cfg) -> None:
             load_talukas(cfg["talukas"], set(slugs))
         except ValueError as err:
             problems.append(str(err))
+
+    limits = cfg.get("alerts") or {}
+    for key in ("window_hours", "rain_chance", "heavy_rain_mm", "heat_c", "wind_gust_kmh"):
+        value = limits.get(key)
+        if not (isinstance(value, (int, float)) and not isinstance(value, bool) and value > 0):
+            problems.append(f"alerts.{key} must be a positive number")
+    parts = cfg.get("day_parts_mr") or []
+    hours = [p.get("from") for p in parts if isinstance(p, dict)]
+    if (not parts or len(hours) != len(parts) or hours[0] != 0 or hours != sorted(set(hours))
+            or not all(isinstance(h, int) and 0 <= h <= 23 for h in hours)
+            or not all(p.get("mr") for p in parts)):
+        problems.append("day_parts_mr must start at hour 0, with increasing hours and Marathi words")
+    text = cfg.get("text_mr") or {}
+    problems += [f"text_mr.{k} is missing" for k in TEXT_KEYS if k not in text]
+    if len(text.get("weekdays") or []) != 7:
+        problems.append("text_mr.weekdays needs 7 names, Monday first")
+    if len(text.get("uv_levels") or []) != 5:
+        problems.append("text_mr.uv_levels needs 5 words")
 
     if problems:
         raise ConfigError("config.yaml: " + "; ".join(problems))

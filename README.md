@@ -10,10 +10,11 @@ its own: its own schedule, its own site, no secrets.
 
 Every step is a fixed rule in code: no AI, and no value is typed by hand.
 
-**Status: part 1 done.** The taluka list and a checked forecast fetch, every
-4 hours (01:30, 05:30, 09:30, 13:30, 17:30, 21:30 IST: each half an hour before
-a price run). Next: the weather pages on GitHub Pages, and a small `alerts.json`
-that the price run reads for the WhatsApp post.
+**Status: live.** Every 4 hours (01:30, 05:30, 09:30, 13:30, 17:30, 21:30 IST,
+each half an hour before a price run) GitHub fetches the forecast, checks it,
+builds 395 pages (359 talukas, 35 districts, the index) and publishes them,
+with `alerts.json` for the price posts. Next: the price run reads `alerts.json`
+for a short weather block in the WhatsApp post.
 
 ## How it works
 
@@ -23,7 +24,14 @@ that the price run reads for the WhatsApp post.
    them in batches of 50 (about 20 seconds), checks every value (ranges,
    weather codes, hour counts, that each answer is for the right place) and
    saves one compact file, `out/weather/weather.json.gz`. Bad values are
-   emptied and listed; it fails if fewer than 90% of talukas got a forecast.
+   emptied and listed; it fails if fewer than 90% of talukas got a forecast,
+   and then nothing is published, so the last good site stays up.
+3. `build_site.py` writes the site: per taluka the weather now, alerts for the
+   next 24 hours, an hourly strip for 24 hours, 7 days with temperature bars,
+   and rain, humidity, wind, UV, sunrise and sunset; per district every taluka
+   at a glance; and `alerts.json` (district -> alert -> talukas).
+4. Alerts are fixed rules from `config.yaml`: storm (thunder codes), heavy rain
+   (64.5 mm a day, IMD's mark), rain chance 60%+, heat 40°C+, gusts 40 km/h+.
 
 ## Commands
 
@@ -33,6 +41,10 @@ python3 -m venv .venv && ./.venv/bin/pip install --require-hashes -r requirement
 
 ```bash
 ./.venv/bin/python fetch_weather.py
+```
+
+```bash
+./.venv/bin/python build_site.py
 ```
 
 ```bash
@@ -50,6 +62,10 @@ On GitHub, run the "Weather" workflow from the Actions tab (or
   credentials after checkout, and pin every action to a full commit SHA. A test
   enforces these rules. PyYAML is pinned by hash. Dependabot proposes updates.
 - Every value from the API is checked before use.
+- The pages are static HTML with one stylesheet: no JavaScript, forms, trackers
+  or outside resources, a Content-Security-Policy that blocks them, no inline
+  styles, and every value HTML-escaped. A test feeds in hostile names and fails
+  if any tag or attribute gets through.
 
 ## Licences and credits
 
@@ -64,10 +80,11 @@ On GitHub, run the "Weather" workflow from the Actions tab (or
 
 | Path | What it is |
 | --- | --- |
-| `config.yaml` | Settings and the 35 districts (same slugs as the price pages) |
+| `config.yaml` | Settings, alert limits, every Marathi word, and the 35 districts |
 | `talukas.yaml` | Every taluka and its forecast point |
 | `fetch_weather.py` | Fetches, checks and saves the forecast |
-| `havaman/` | The code: config, HTTP, weather checks |
+| `build_site.py` | Builds the site and `alerts.json` from the saved forecast |
+| `havaman/` | The code: config, HTTP, weather checks, alert rules, sky words, pages |
 | `scripts/build_talukas.py` | Rebuilds `talukas.yaml` from OpenStreetMap downloads (by hand) |
 | `tests/` | Tests, with no network needed |
 | `.github/` | The weather and test workflows, Dependabot |
