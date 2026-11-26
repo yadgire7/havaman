@@ -1,6 +1,6 @@
-# Fetches the forecast for every taluka from Open-Meteo and checks it.
-# For now it runs by hand only and keeps the checked file as a run artifact;
-# the 3-hourly schedule and the Pages deploy are added with the pages.
+# Fetches the forecast for every taluka from Open-Meteo and checks it, every
+# 4 hours, or by hand from the Actions tab. For now it keeps the checked file
+# as a run artifact; the Pages deploy is added with the pages.
 #
 # Security: no secrets are used at all; no pull_request trigger; read-only
 # token; every action pinned to a full commit SHA. If a run fails, GitHub's
@@ -8,6 +8,10 @@
 name: Weather
 
 on:
+  schedule:
+    # 00:00, 04:00 ... 20:00 UTC = 05:30, 09:30, 13:30, 17:30, 21:30, 01:30 IST.
+    # tests/test_repo.py fails if this stops matching config.yaml.
+    - cron: "0 0-23/4 * * *"
   workflow_dispatch:
 
 permissions:

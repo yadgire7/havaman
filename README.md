@@ -10,9 +10,10 @@ its own: its own schedule, its own site, no secrets.
 
 Every step is a fixed rule in code: no AI, and no value is typed by hand.
 
-**Status: part 1 done.** The taluka list and a checked forecast fetch. Next:
-the weather pages, the 3-hourly schedule with GitHub Pages, and a small
-`alerts.json` that the price run reads for the WhatsApp post.
+**Status: part 1 done.** The taluka list and a checked forecast fetch, every
+4 hours (01:30, 05:30, 09:30, 13:30, 17:30, 21:30 IST: each half an hour before
+a price run). Next: the weather pages on GitHub Pages, and a small `alerts.json`
+that the price run reads for the WhatsApp post.
 
 ## How it works
 
@@ -54,7 +55,7 @@ On GitHub, run the "Weather" workflow from the Actions tab (or
 
 - Weather data: © [Open-Meteo.com](https://open-meteo.com/), CC BY 4.0. Every
   page must credit and link it. The free API is for non-commercial use, under
-  10,000 calls a day; this project uses about 5,000.
+  10,000 calls a day; this project uses about 3,700.
 - Taluka list: © [OpenStreetMap](https://www.openstreetmap.org/copyright)
   contributors, ODbL 1.0, built by `scripts/build_talukas.py` (Mumbai
   Suburban's three talukas placed by hand). Marathi names need review.

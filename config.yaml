@@ -9,7 +9,9 @@ weather:
   talukas_file: talukas.yaml   # 358 talukas + Mumbai City, from OpenStreetMap (ODbL)
   forecast_days: 7             # hourly and daily, counting today
   batch_size: 50               # talukas per request
-  every_hours: 3               # how often the pages refresh
+  every_hours: 4               # how often the forecast refreshes
+  first_run_ist: "01:30"       # then every 4 h: 05:30, 09:30, 13:30, 17:30, 21:30,
+                               # each 30 min before a price run (06, 12, 18, 00)
 
 # The same 35 districts as the price pages (AGMARKNET reports Mumbai City and
 # Suburban as one district), with the same slugs so the two sites can link.

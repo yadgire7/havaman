@@ -57,6 +57,8 @@ def validate_config(cfg) -> None:
         problems.append("weather.batch_size must be 1 to 100")
     if not (isinstance(every, int) and every >= 1 and 24 % every == 0):
         problems.append("weather.every_hours must divide 24")
+    if not re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", str(weather.get("first_run_ist", ""))):
+        problems.append("weather.first_run_ist must be HH:MM")
     if "talukas" in cfg:
         from havaman.weather import load_talukas
         try:

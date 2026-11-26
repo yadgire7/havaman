@@ -55,6 +55,25 @@ class WorkflowTests(unittest.TestCase):
                         self.assertNotRegex(step.get("run", ""), r"\$\{\{",
                                             "${{ }} inside a shell script is an injection risk")
 
+    def test_schedule_matches_config(self):
+        import datetime as dt
+        from havaman.config import IST
+        flow = yaml.safe_load((ROOT / ".github/workflows/weather.yml").read_text(encoding="utf-8"))
+        got = set()
+        for entry in self.triggers(flow)["schedule"]:
+            minute, hour = entry["cron"].split()[:2]
+            span, _, step = hour.partition("/")
+            lo, _, hi = span.partition("-")
+            hours = range(int(lo), int(hi or lo) + 1, int(step or 1))
+            got |= {(h, int(minute)) for h in hours}
+        every = CFG["weather"]["every_hours"]
+        hh, mm = (int(x) for x in CFG["weather"]["first_run_ist"].split(":"))
+        first = dt.datetime(2026, 1, 1, hh, mm, tzinfo=IST)
+        expected = {((first + dt.timedelta(hours=k * every)).astimezone(dt.timezone.utc).hour,
+                     (first + dt.timedelta(hours=k * every)).astimezone(dt.timezone.utc).minute)
+                    for k in range(24 // every)}
+        self.assertEqual(got, expected, "weather.yml cron no longer matches config.yaml")
+
     def test_requirements_are_hash_pinned(self):
         text = (ROOT / "requirements.txt").read_text(encoding="utf-8")
         self.assertRegex(text, r"(?m)^PyYAML==[\d.]+ ")
