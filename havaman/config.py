@@ -63,6 +63,9 @@ def validate_config(cfg) -> None:
         problems.append("weather.forecast_days must be 1 to 7 (more counts as extra API calls)")
     if not (isinstance(batch, int) and 1 <= batch <= 100):
         problems.append("weather.batch_size must be 1 to 100")
+    pause = weather.get("pause_seconds")
+    if not (isinstance(pause, (int, float)) and 0 <= pause <= 60):
+        problems.append("weather.pause_seconds must be 0 to 60")
     if not (isinstance(every, int) and every >= 1 and 24 % every == 0):
         problems.append("weather.every_hours must divide 24")
     if not re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", str(weather.get("first_run_ist", ""))):

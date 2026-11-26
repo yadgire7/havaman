@@ -31,7 +31,8 @@ def main(argv=None) -> int:
     settings = cfg["weather"]
     talukas = weather.load_talukas(cfg["talukas"], {d["slug"] for d in cfg["districts"]})
     now = dt.datetime.now(IST)
-    result = weather.fetch_all(talukas, now, settings["forecast_days"], settings["batch_size"])
+    result = weather.fetch_all(talukas, now, settings["forecast_days"], settings["batch_size"],
+                               pause=settings["pause_seconds"])
     weather.save(args.out, result)
 
     share = len(result.forecasts) / len(talukas)

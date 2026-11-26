@@ -29,6 +29,7 @@ from havaman.http import urllib_fetch
 API = "https://api.open-meteo.com/v1/forecast"
 VERSION = 1
 RETRIES = 2
+RATE_LIMIT_WAIT_S = 65   # Open-Meteo's per-minute limit resets after a minute
 MAX_GAP_DEG = 0.1   # Open-Meteo snaps to its grid; anything further is the wrong place
 
 # Every variable we ask for, with the range a real value can have.
@@ -122,10 +123,11 @@ def build_url(batch: list[Taluka], days: int) -> str:
 
 
 def get_json(url: str, fetch=urllib_fetch, sleep=time.sleep):
-    problem = "no attempt made"
+    problem, wait = "no attempt made", 0
     for attempt in range(RETRIES + 1):
         if attempt:
-            sleep(2 ** attempt)
+            sleep(wait or 2 ** attempt)
+            wait = 0
         try:
             status, body = fetch(url)
         except OSError as err:
@@ -139,7 +141,9 @@ def get_json(url: str, fetch=urllib_fetch, sleep=time.sleep):
                 problem = "HTTP 200 but the body was not JSON"
                 continue
         problem = f"HTTP {status}: {body[:200].decode('utf-8', 'replace').strip()}"
-        if 400 <= status < 500 and status != 429:
+        if status == 429:
+            wait = RATE_LIMIT_WAIT_S   # "try again in one minute"
+        elif 400 <= status < 500:
             break
     raise WeatherError(problem)
 
@@ -201,7 +205,9 @@ def check_location(t: Taluka, loc, days: int, now: dt.datetime) -> tuple[dict | 
 
 
 def fetch_all(talukas: list[Taluka], now: dt.datetime, days: int = 7, batch_size: int = 50,
-              fetch=urllib_fetch, sleep=time.sleep) -> Result:
+              fetch=urllib_fetch, sleep=time.sleep, pause: float = 15.0) -> Result:
+    """All talukas in batches, `pause` seconds apart: Open-Meteo allows 600 calls a
+    minute, and each location with our 17 variables counts as about 1.7."""
     result = Result(now)
     for start in range(0, len(talukas), batch_size):
         batch = talukas[start:start + batch_size]
@@ -222,7 +228,7 @@ def fetch_all(talukas: list[Taluka], now: dt.datetime, days: int = 7, batch_size
             if forecast is not None:
                 result.forecasts[t.key] = forecast
         if start + batch_size < len(talukas):
-            sleep(1.0)                          # be gentle with a free service
+            sleep(pause)
     return result
 
 

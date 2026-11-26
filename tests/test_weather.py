@@ -152,6 +152,28 @@ class FetchTests(unittest.TestCase):
         self.assertEqual(list(result.forecasts), ["pune/haveli"])
         self.assertIn("HTTP 503", result.problems[0])
 
+    def test_rate_limit_waits_a_minute_then_succeeds(self):
+        waits = []
+        fetch, calls = self.fake([(429, b'{"reason":"Minutely API request limit exceeded"}'),
+                                  (200, json.dumps(location()).encode())])
+        result = weather.fetch_all([AUSA], NOW, 7, 1, fetch=fetch, sleep=waits.append)
+        self.assertEqual(list(result.forecasts), ["latur/ausa"])
+        self.assertEqual(waits, [weather.RATE_LIMIT_WAIT_S])
+
+    def test_batches_are_paced(self):
+        waits = []
+        locs = [json.dumps(location(t)).encode() for t in self.TALUKAS]
+        fetch, _ = self.fake([(200, b) for b in locs])
+        weather.fetch_all(self.TALUKAS, NOW, 7, 1, fetch=fetch, sleep=waits.append, pause=15)
+        self.assertEqual(waits, [15, 15])
+
+    def test_paced_run_stays_under_the_minute_limit(self):
+        settings = CFG["weather"]
+        variables = len(weather.HOURLY) + len(weather.DAILY)
+        per_batch = settings["batch_size"] * max(1, variables / 10)
+        per_minute = per_batch * (60 / max(settings["pause_seconds"], 1) + 1)
+        self.assertLess(per_minute, 600)
+
     def test_rejected_request_is_not_retried(self):
         fetch, calls = self.fake([(400, b'{"error":true,"reason":"bad"}')])
         result = weather.fetch_all(self.TALUKAS[:1], NOW, 7, 5, fetch=fetch, sleep=lambda s: None)
