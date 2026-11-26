@@ -146,11 +146,23 @@ class FetchTests(unittest.TestCase):
 
     def test_one_failed_batch_does_not_stop_the_rest(self):
         locs = [location(t) for t in self.TALUKAS]
-        fetch, calls = self.fake([(503, b"down"), (503, b"down"), (503, b"down"),
-                                  (200, json.dumps(locs[2]).encode())])
+        down = [(503, b"down")] * 3
+        fetch, calls = self.fake(down + [(200, json.dumps(locs[2]).encode())] + down)
         result = weather.fetch_all(self.TALUKAS, NOW, 7, 2, fetch=fetch, sleep=lambda s: None)
         self.assertEqual(list(result.forecasts), ["pune/haveli"])
         self.assertIn("HTTP 503", result.problems[0])
+        self.assertIn("second try", result.problems[0])
+
+    def test_failed_batch_gets_a_second_try_at_the_end(self):
+        locs = [location(t) for t in self.TALUKAS]
+        timeout = OSError("The handshake operation timed out")
+        fetch, calls = self.fake([timeout] * 3 + [(200, json.dumps(locs[2]).encode()),
+                                                  (200, json.dumps(locs[:2]).encode())])
+        waits = []
+        result = weather.fetch_all(self.TALUKAS, NOW, 7, 2, fetch=fetch, sleep=waits.append, pause=15)
+        self.assertEqual(len(result.forecasts), 3)
+        self.assertEqual(result.problems, [])
+        self.assertIn(weather.SECOND_TRY_WAIT_S, waits)
 
     def test_rate_limit_waits_a_minute_then_succeeds(self):
         waits = []

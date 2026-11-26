@@ -30,6 +30,7 @@ API = "https://api.open-meteo.com/v1/forecast"
 VERSION = 1
 RETRIES = 2
 RATE_LIMIT_WAIT_S = 65   # Open-Meteo's per-minute limit resets after a minute
+SECOND_TRY_WAIT_S = 30   # before retrying the batches that failed
 MAX_GAP_DEG = 0.1   # Open-Meteo snaps to its grid; anything further is the wrong place
 
 # Every variable we ask for, with the range a real value can have.
@@ -60,7 +61,12 @@ WMO_CODES = {0, 1, 2, 3, 45, 48, 51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 71, 73,
 
 
 class WeatherError(Exception):
-    """Open-Meteo could not be used for this run."""
+    """Open-Meteo could not be used for this run. `retry` is False when Open-Meteo
+    rejected the request itself (a 4xx other than 429): trying again cannot help."""
+
+    def __init__(self, message: str, retry: bool = True):
+        super().__init__(message)
+        self.retry = retry
 
 
 @dataclass
@@ -123,7 +129,7 @@ def build_url(batch: list[Taluka], days: int) -> str:
 
 
 def get_json(url: str, fetch=urllib_fetch, sleep=time.sleep):
-    problem, wait = "no attempt made", 0
+    problem, wait, retry = "no attempt made", 0, True
     for attempt in range(RETRIES + 1):
         if attempt:
             sleep(wait or 2 ** attempt)
@@ -144,8 +150,9 @@ def get_json(url: str, fetch=urllib_fetch, sleep=time.sleep):
         if status == 429:
             wait = RATE_LIMIT_WAIT_S   # "try again in one minute"
         elif 400 <= status < 500:
+            retry = False
             break
-    raise WeatherError(problem)
+    raise WeatherError(problem, retry)
 
 
 def _number(value, rule):
@@ -207,28 +214,41 @@ def check_location(t: Taluka, loc, days: int, now: dt.datetime) -> tuple[dict | 
 def fetch_all(talukas: list[Taluka], now: dt.datetime, days: int = 7, batch_size: int = 50,
               fetch=urllib_fetch, sleep=time.sleep, pause: float = 15.0) -> Result:
     """All talukas in batches, `pause` seconds apart: Open-Meteo allows 600 calls a
-    minute, and each location with our 17 variables counts as about 1.7."""
+    minute, and each location with our 17 variables counts as about 1.7. Batches
+    that fail (a timeout, an outage) get one more try at the end."""
     result = Result(now)
-    for start in range(0, len(talukas), batch_size):
-        batch = talukas[start:start + batch_size]
-        try:
-            data = get_json(build_url(batch, days), fetch, sleep)
-        except WeatherError as err:
-            result.problems.append(f"talukas {start + 1}-{start + len(batch)}: {err}")
-            continue
-        if isinstance(data, dict) and len(batch) == 1:
-            data = [data]                      # one location comes back as an object
-        if not isinstance(data, list) or len(data) != len(batch):
-            result.problems.append(f"talukas {start + 1}-{start + len(batch)}: "
-                                   "answer does not have one forecast per taluka")
-            continue
-        for t, loc in zip(batch, data):
-            forecast, problems = check_location(t, loc, days, now)
-            result.problems += problems
-            if forecast is not None:
-                result.forecasts[t.key] = forecast
-        if start + batch_size < len(talukas):
-            sleep(pause)
+    batches = [talukas[i:i + batch_size] for i in range(0, len(talukas), batch_size)]
+    failed: list[tuple[int, list[Taluka], str]] = []
+    for round_ in (1, 2):
+        todo = list(enumerate(batches)) if round_ == 1 else [(n, b) for n, b, _ in failed]
+        if round_ == 2:
+            if not todo:
+                break
+            failed = []
+            sleep(SECOND_TRY_WAIT_S)
+        for k, (n, batch) in enumerate(todo):
+            label = f"talukas {n * batch_size + 1}-{n * batch_size + len(batch)}"
+            try:
+                data = get_json(build_url(batch, days), fetch, sleep)
+            except WeatherError as err:
+                if err.retry and round_ == 1:
+                    failed.append((n, batch, f"{label}: {err}"))
+                else:
+                    result.problems.append(f"{label}: {err}"
+                                           + (" (also on the second try)" if round_ == 2 else ""))
+            else:
+                if isinstance(data, dict) and len(batch) == 1:
+                    data = [data]                      # one location comes back as an object
+                if not isinstance(data, list) or len(data) != len(batch):
+                    result.problems.append(f"{label}: answer does not have one forecast per taluka")
+                else:
+                    for t, loc in zip(batch, data):
+                        forecast, problems = check_location(t, loc, days, now)
+                        result.problems += problems
+                        if forecast is not None:
+                            result.forecasts[t.key] = forecast
+            if k + 1 < len(todo):
+                sleep(pause)
     return result
 
 
